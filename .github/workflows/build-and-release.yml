@@ -1,0 +1,78 @@
+# SPDX-FileCopyrightText: 2025 Mohamed Hamdi <haamdi@outlook.com>
+#
+# SPDX-License-Identifier: MPL-2.0
+
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  BINARY_NAME: netspeed
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc
+
+    - name: Generate datetime tag
+      id: datetime
+      run: |
+        DATETIME=$(date +'%Y%m%d-%H%M%S')
+        echo "tag=v${DATETIME}" >> $GITHUB_OUTPUT
+        echo "datetime=${DATETIME}" >> $GITHUB_OUTPUT
+        echo "Generated tag: v${DATETIME}"
+
+    - name: Create and push tag
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag ${{ steps.datetime.outputs.tag }}
+        git push origin ${{ steps.datetime.outputs.tag }}
+
+    - name: Build release binary
+      run: |
+        make all
+
+    - name: Prepare release artifacts
+      run: |
+        mkdir -p release
+        cp ${{ env.BINARY_NAME }} release/
+        cd release
+        tar czf ${{ env.BINARY_NAME }}-linux-x86_64.tar.gz ${{ env.BINARY_NAME }}
+        sha256sum ${{ env.BINARY_NAME }}-linux-x86_64.tar.gz > ${{ env.BINARY_NAME }}-linux-x86_64.tar.gz.sha256
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.datetime.outputs.tag }}
+        name: Release ${{ steps.datetime.outputs.tag }}
+        body: |
+          ## Release ${{ steps.datetime.outputs.tag }}
+
+          **Build Date**: ${{ steps.datetime.outputs.datetime }}
+          **Commit**: ${{ github.sha }}
+          **Target**: linux-x86_64
+
+          ### Commit Summary
+          ${{ github.event.head_commit.message }}
+        files: |
+          release/${{ env.BINARY_NAME }}-linux-x86_64.tar.gz
+          release/${{ env.BINARY_NAME }}-linux-x86_64.tar.gz.sha256
+        prerelease: false
+        generate_release_notes: true
