@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: MPL-2.0
 
 CC = gcc
-CFLAGS = -std=c23 -Wall -Wextra -O2 -D_GNU_SOURCE -pedantic
+CFLAGS = -Wall -Wextra -D_GNU_SOURCE -pedantic -std=c23 -Os -flto -ffunction-sections -fdata-sections -fno-stack-protector -fomit-frame-pointer -DNDEBUG -static
+LDFLAGS = -Wl,--gc-sections -Wl,--strip-all -flto
 TARGET = netspeed
 SOURCE = main.c
 INSTALL_DIR = /usr/local/bin
@@ -13,7 +14,7 @@ INSTALL_DIR = /usr/local/bin
 all: $(TARGET)
 
 $(TARGET): $(SOURCE)
-	@$(CC) $(CFLAGS) -o $@ $<
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 clean:
 	rm -f $(TARGET)
