@@ -17,6 +17,7 @@
 #define MAX_INTERFACES 32
 #define MAX_LINE_LEN 256
 #define MAX_NAME_LEN 16
+#define DECIMAL_BASE 1000
 
 typedef struct {
   char name[MAX_NAME_LEN];
@@ -24,7 +25,7 @@ typedef struct {
   unsigned long long tx_bytes;
 } interface_t;
 
-static int polling_interval = 1;
+static unsigned int polling_interval = 1;
 static char **interface_filter = NULL;
 static int filter_count = 0;
 
@@ -58,7 +59,7 @@ void format_human_readable(unsigned long long bytes, char output[static 16]) {
   static const char *const units[] = {"B", "K", "M", "G", "T", "P"};
   static const size_t num_units = sizeof(units) / sizeof(units[0]);
 
-  if (bytes < 1000) {
+  if (bytes < DECIMAL_BASE) {
     snprintf(output, 16, "%llu%s", bytes, units[0]);
     return;
   }
@@ -66,7 +67,7 @@ void format_human_readable(unsigned long long bytes, char output[static 16]) {
   double value = (double)bytes;
   size_t unit_idx = 0;
 
-  while (value >= 1000.0 && unit_idx < num_units - 1) {
+  while (value >= DECIMAL_BASE && unit_idx < num_units - 1) {
     value /= 1000.0;
     unit_idx++;
   }
@@ -85,7 +86,7 @@ void output_json(unsigned long long rx_rate, unsigned long long tx_rate) {
   format_human_readable(rx_rate, rx_str);
   format_human_readable(tx_rate, tx_str);
 
-  printf("{\"text\": \"%4s  %4s \", \"tooltip\": \"\"}\n",
+  printf("{\"text\": \"%4s  %4s \"}\n",
          rx_str, tx_str);
   fflush(stdout);
 }
@@ -143,7 +144,7 @@ int read_interfaces(interface_t interfaces[static MAX_INTERFACES]) {
                "%llu %llu %llu %llu",
                &rx_bytes, &dummy, &dummy, &dummy, &dummy, &dummy, &dummy,
                &dummy, &tx_bytes, &dummy, &dummy, &dummy, &dummy, &dummy,
-               &dummy, &dummy) >= 9) {
+               &dummy, &dummy) == 16) {
 
       // C23 compound literal assignment
       interfaces[count] =
